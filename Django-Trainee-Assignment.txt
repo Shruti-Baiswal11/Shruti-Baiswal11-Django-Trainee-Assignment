@@ -1,0 +1,170 @@
+Question 1: Are Django signals executed synchronously or asynchronously by default?
+Answer: By default, Django signals are executed synchronously. When a signal is sent, the associated receivers (signal handlers) are executed immediately in the same flow of execution. This means the rest of the code will wait until all signal handlers have completed before proceeding.
+
+Code to Prove Synchronous Execution:
+# models.py
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.db import models
+import time
+
+class MyModel(models.Model):
+    name = models.CharField(max_length=100)
+
+# Signal handler
+@receiver(post_save, sender=MyModel)
+def my_signal_handler(sender, instance, **kwargs):
+    print("Signal handler started.")
+    time.sleep(5)  # Simulate a delay
+    print("Signal handler finished.")
+
+# Test the behavior
+# In the Django shell:
+# python manage.py shell
+
+from myapp.models import MyModel
+import time
+
+start_time = time.time()
+obj = MyModel.objects.create(name="Test")
+end_time = time.time()
+
+print(f"Total execution time: {end_time - start_time} seconds.")
+
+Explanation:
+When MyModel.objects.create() is executed, the post_save signal is triggered.
+The signal handler (my_signal_handler) introduces a 5-second delay.
+The total execution time measured includes this delay, proving the synchronous nature of the signal.
+
+
+ Output:
+Signal handler started.
+Signal handler finished.
+Total execution time: 5.01 seconds.
+
+
+
+
+
+Question 2: Do Django signals run in the same thread as the caller?
+Answer: Yes, by default Django signals run in the same thread as the caller. Signal handlers execute within the same thread context where           the signal was triggered.
+
+Code to Prove Same Thread Execution:
+
+# models.py
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.db import models
+import threading
+
+class MyModel(models.Model):
+    name = models.CharField(max_length=100)
+
+# Signal handler
+@receiver(post_save, sender=MyModel)
+def my_signal_handler(sender, instance, **kwargs):
+    print(f"Signal handler thread: {threading.current_thread().name}")
+
+# Test in Django shell:
+# python manage.py shell
+
+from myapp.models import MyModel
+import threading
+
+print(f"Caller thread: {threading.current_thread().name}")
+obj = MyModel.objects.create(name="Test")
+
+Explanation:
+The threading.current_thread().name function retrieves the current thread name.
+Both the signal handler and the caller (e.g., the code creating the object) will output the same thread name.
+
+ Output:
+Caller thread: MainThread
+Signal handler thread: MainThread
+This shows that the signal handler executes in the same thread as the caller.
+
+
+
+
+
+Question 3: Do Django signals run in the same database transaction as the caller?
+Answer: Django signals run within the same database transaction context as the caller when the signal is triggered during an active transaction. For example, if the signal is triggered inside an atomic block, it will run in the same transaction context.
+
+Code to Prove Transaction Context:
+
+# models.py
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.db import models
+from django.db import transaction
+
+class MyModel(models.Model):
+    name = models.CharField(max_length=100)
+
+# Signal handler
+@receiver(post_save, sender=MyModel)
+def my_signal_handler(sender, instance, **kwargs):
+    print(f"Signal inside transaction: {not transaction.get_autocommit()}")
+
+# Test in Django shell:
+# python manage.py shell
+
+from myapp.models import MyModel
+from django.db import transaction
+
+print(f"Autocommit before transaction: {transaction.get_autocommit()}")  # Should be True
+with transaction.atomic():
+    obj = MyModel.objects.create(name="Test")
+    print(f"Autocommit inside transaction: {transaction.get_autocommit()}")  # Should be False
+
+Explanation:
+transaction.get_autocommit() checks if the database is in autocommit mode. If inside a transaction, it will return False.
+The signal handler confirms the current transaction state matches that of the caller.
+
+Output:
+Autocommit before transaction: True
+Signal inside transaction: True
+Autocommit inside transaction: False
+This demonstrates that the signal runs within the same transaction context as the caller.
+
+
+
+
+
+Custom Classes in Python
+Task: Implementing the Rectangle Class
+The goal is to:
+Create a Rectangle class that requires length and width as initialization arguments.
+Make the Rectangle object iterable, returning the length and width in a specific format:
+First, return {'length': <value>}.
+Then, return {'width': <value>}.
+
+Code Implementation:
+class Rectangle:
+    def __init__(self, length: int, width: int):
+        """
+        Initialize the Rectangle with a length and width.
+        """
+        self.length = length
+        self.width = width
+
+    def __iter__(self):
+        """
+        Make the Rectangle iterable.
+        Yields length and width as dictionaries in sequence.
+        """
+        yield {'length': self.length}
+        yield {'width': self.width}
+
+# Test the Rectangle class
+if __name__ == "__main__":
+    rect = Rectangle(5, 10)
+
+    # Iterate over the rectangle instance
+    for dimension in rect:
+        print(dimension)
+
+Output:
+When the script is run, it will produce:
+{'length': 5}
+{'width': 10}
